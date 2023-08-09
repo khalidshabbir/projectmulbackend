@@ -304,3 +304,37 @@ exports.forgetPasswordEmailVerified_resend = async (req, res) => {
 };
 
 // ======================================================================
+exports.resetforgetPassword = async (req, res) => {
+  console.log(req.body)
+  const { email, verificationcode, password } = req.body;
+  const user = await User.findOne({ email });
+  if (!user) {
+    return res.status(404).json({ message: 'Email not found' });
+  }
+
+  if (user.verificationCode !== verificationcode) {
+    return res.status(400).json({ message: 'Invalid verification code', });
+  }
+
+  if (Date.now() > Number(user.verificationCodeExpires)) { // check if expiry timestamp has passed
+    return (
+      res.status(400).json({ message: 'Verification link has expired',expired:true }),
+      console.log("Expire error")
+    )
+  }
+  user.password = password;
+  user.verificationCode = null;
+  user.verificationCodeExpires = null;
+  await user.save();
+
+  const subject = 'Password Changed';
+  const html = `
+  <p>Hello ${user.firstName},</p>
+  <p>Your password successfully changed.</p>
+`;
+
+  await sendEmail(email, subject, html);
+
+  res.status(201).json({ message: 'Password Changed Successfully.' });
+
+}
